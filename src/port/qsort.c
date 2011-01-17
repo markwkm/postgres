@@ -1,5 +1,7 @@
 /*
- *	qsort.c: standard quicksort algorithm
+ *	qsort.c: a modified recursive parallel quicksort algorithm
+ *
+ * FIXME: Do we need to set up function for auxiliary processes for sorting?
  *
  *	Modifications from vanilla NetBSD source:
  *	  Add do ... while() macro fix
@@ -43,8 +45,25 @@
  * SUCH DAMAGE.
  */
 
+#include <unistd.h>
+#include <sys/sem.h>
+
 #include "c.h"
 
+
+/*
+ * FIXME:
+ * The only reason for defining these three variables here is because the
+ * quicksort code is built into libpgport and other files, such as
+ * postmaster.c and proc.c do not.  I do not know what other scenarios would
+ * be more appropriate.
+ */
+int sem_id_dop;
+int *shm_dop;
+int degree_of_parallelism;
+
+static void get_lock();
+static void release_lock();
 
 static char *med3(char *a, char *b, char *c,
 	 int (*cmp) (const void *, const void *));
@@ -91,6 +110,30 @@ swapfunc(char *a, char *b, size_t n, int swaptype)
 
 #define vecswap(a, b, n) if ((n) > 0) swapfunc((a), (b), (size_t)(n), swaptype)
 
+static void
+get_lock()
+{
+	struct sembuf operations[1];
+
+	operations[0].sem_num = 0;
+	operations[0].sem_op = -1;
+	operations[0].sem_flg = 0;
+	/* FIXME: handle error */
+	semop(sem_id_dop, operations, 1);
+}
+
+void static
+release_lock()
+{
+	struct sembuf operations[1];
+
+	operations[0].sem_num = 0;
+	operations[0].sem_op = 1;
+	operations[0].sem_flg = 0;
+	/* FIXME: handle error */
+	semop(sem_id_dop, operations, 1);
+}
+
 static char *
 med3(char *a, char *b, char *c, int (*cmp) (const void *, const void *))
 {
@@ -114,9 +157,18 @@ pg_qsort(void *a, size_t n, size_t es, int (*cmp) (const void *, const void *))
 				swaptype,
 				presorted;
 
-loop:SWAPINIT(a, es);
+	/*
+	 * Use -1 to initialize because fork() uses 0 to identify a process as a
+	 * child.
+	 */
+	int lchild = -1;
+	int rchild = -1;
+	int status; /* For waitpid() only. */
+
+	SWAPINIT(a, es);
 	if (n < 7)
 	{
+		/* Insertion sort if less than 7 elements. */
 		for (pm = (char *) a + es; pm < (char *) a + n * es; pm += es)
 			for (pl = pm; pl > (char *) a && cmp(pl - es, pl) > 0;
 				 pl -= es)
@@ -124,6 +176,7 @@ loop:SWAPINIT(a, es);
 		return;
 	}
 	presorted = 1;
+	/* Check if sorted. */
 	for (pm = (char *) a + es; pm < (char *) a + n * es; pm += es)
 	{
 		if (cmp(pm - es, pm) > 0)
@@ -148,6 +201,7 @@ loop:SWAPINIT(a, es);
 		}
 		pm = med3(pl, pm, pn, cmp);
 	}
+	/* Begin "partition" logic. */
 	swap(a, pm);
 	pa = pb = (char *) a + es;
 	pc = pd = (char *) a + (n - 1) * es;
@@ -177,19 +231,64 @@ loop:SWAPINIT(a, es);
 		pb += es;
 		pc -= es;
 	}
+	/* End "partition" logic. */
 	pn = (char *) a + n * es;
 	r = Min(pa - (char *) a, pb - pa);
 	vecswap(a, pb - r, r);
 	r = Min(pd - pc, pn - pd - es);
 	vecswap(pb, pn - r, r);
 	if ((r = pb - pa) > es)
-		qsort(a, r / es, es, cmp);
+	{
+		get_lock();
+		if (*shm_dop < degree_of_parallelism)
+		{
+			/* Under the degree limit, fork. */
+			++*shm_dop;
+			release_lock();
+
+			lchild = fork(); /* FIXME: handle error */
+			if (lchild == 0) {
+				/* The 'left' child starts processing. */
+				qsort(a, r / es, es, cmp);
+
+				get_lock();
+				--*shm_dop;
+				release_lock();
+				exit(0);
+			}
+		}
+		else
+		{
+			release_lock();
+			qsort(a, r / es, es, cmp);
+		}
+	}
 	if ((r = pd - pc) > es)
 	{
-		/* Iterate rather than recurse to save stack space */
-		a = pn - r;
-		n = r / es;
-		goto loop;
+		get_lock();
+		if (*shm_dop < degree_of_parallelism)
+		{
+			/* Under the degree limit, fork. */
+			++*shm_dop;
+			release_lock();
+
+			rchild = fork(); /* FIXME: handle error */
+			if (lchild == 0) {
+				/* The 'right' child starts processing. */
+				qsort(pn - r, r / es, es, cmp);
+
+				get_lock();
+				--*shm_dop;
+				release_lock();
+				exit(0);
+			}
+		}
+		else
+		{
+			release_lock();
+			qsort(pn - r, r / es, es, cmp);
+		}
 	}
-/*		qsort(pn - r, r / es, es, cmp);*/
+	waitpid(lchild, &status, 0);
+	waitpid(rchild, &status, 0);
 }

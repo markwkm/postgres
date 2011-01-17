@@ -118,6 +118,7 @@ extern char *temp_tablespaces;
 extern bool synchronize_seqscans;
 extern bool fullPageWrites;
 extern int	ssl_renegotiation_limit;
+extern int	degree_of_parallelism;
 
 #ifdef TRACE_SORT
 extern bool trace_sort;
@@ -2204,6 +2205,15 @@ static struct config_real ConfigureNamesReal[] =
 		},
 		&CheckPointCompletionTarget,
 		0.5, 0.0, 1.0, NULL, NULL
+	},
+
+	{
+		{"degree_of_parallelism", PGC_USERSET, QUERY_TUNING_OTHER,
+			gettext_noop("Sets the size maximum processes to be forked per backend."),
+			NULL,
+		},
+		&degree_of_parallelism,
+		1, 1, 1024, NULL, NULL
 	},
 
 	/* End-of-list marker */

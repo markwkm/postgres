@@ -34,6 +34,8 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 
 #include "access/transam.h"
 #include "access/xact.h"
@@ -52,6 +54,10 @@
 int			DeadlockTimeout = 1000;
 int			StatementTimeout = 0;
 bool		log_lock_waits = false;
+
+/* These fields are for inter-process parallelism. */
+extern int sem_id_dop; /* Semaphore just to access the DOP counter. */
+extern int *shm_dop; /* Current degree of parallelism, the DOP counter. */
 
 /* Pointer to this process's PGPROC struct, if any */
 PGPROC	   *MyProc = NULL;
@@ -241,6 +247,13 @@ InitProcess(void)
 	volatile PROC_HDR *procglobal = ProcGlobal;
 	int			i;
 
+	/* A structure for initialiting the DOP semaphore. */
+	union semun {
+		int val;
+		struct semid_ds *buf;
+		ushort *array;
+	} argument;
+
 	/*
 	 * ProcGlobal should be set up already (if we are a backend, we inherit
 	 * this by fork() or EXEC_BACKEND mechanism from the postmaster).
@@ -325,6 +338,17 @@ InitProcess(void)
 	for (i = 0; i < NUM_LOCK_PARTITIONS; i++)
 		SHMQueueInit(&(MyProc->myProcLocks[i]));
 	MyProc->recoveryConflictPending = false;
+
+	/* FIXME: handle error */
+	sem_id_dop = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666);
+	argument.val = 1;
+	semctl(sem_id_dop, 0, SETVAL, argument); /* FIXME: handle error */
+	shm_dop = shmat(sem_id_dop, NULL, 0); /* FIXME: handle error */
+	/*
+	 * Initialize the DOP to 1 because there is always 1 process active, which
+	 * is the backend that was started to handle the connection.
+	 */
+	*shm_dop = 1;
 
 	/*
 	 * We might be reusing a semaphore that belonged to a failed process. So
@@ -706,6 +730,10 @@ ProcKill(int code, Datum arg)
 	/* wake autovac launcher if needed -- see comments in FreeWorkerInfo */
 	if (AutovacuumLauncherPid != 0)
 		kill(AutovacuumLauncherPid, SIGUSR2);
+
+	/* Clean up the semaphore and shared memory used for the DOP variables. */
+	shmdt(shm_dop); /* FIXME: handle error */
+	shmctl(sem_id_dop, IPC_RMID, NULL); /* FIXME: handle error */
 }
 
 /*

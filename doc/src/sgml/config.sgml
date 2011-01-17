@@ -2637,6 +2637,21 @@ SELECT * FROM parent WHERE key = 2400;
       </listitem>
      </varlistentry>
 
+     <varlistentry id="guc-degree-of-parallelism" xreflabel="degree-of-parallelism">
+      <term><varname>degree-of-parallelism</varname> (<type>integer</type>)</term>
+      <indexterm>
+       <primary><varname>degree-of-parallelism</> configuration parameter</primary>
+      </indexterm>
+      <listitem>
+       <para>
+        Sets the maximum degree of paralleism (DOP) to be used by each backend
+        server.  This is the maximum number of process than can be created in
+        order to do work in parallel.  Currently this is only used by
+        quicksort.
+       </para>
+      </listitem>
+     </varlistentry>
+
      <varlistentry id="guc-cursor-tuple-fraction" xreflabel="cursor_tuple_fraction">
       <term><varname>cursor_tuple_fraction</varname> (<type>floating point</type>)</term>
       <indexterm>

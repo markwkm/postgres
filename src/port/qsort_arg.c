@@ -43,8 +43,18 @@
  * SUCH DAMAGE.
  */
 
+#include <unistd.h>
+#include <sys/sem.h>
+
 #include "c.h"
 
+
+int sem_id_dop;
+int *shm_dop;
+int degree_of_parallelism;
+
+static void get_lock();
+static void release_lock();
 
 static char *med3(char *a, char *b, char *c,
 	 qsort_arg_comparator cmp, void *arg);
@@ -91,6 +101,30 @@ swapfunc(char *a, char *b, size_t n, int swaptype)
 
 #define vecswap(a, b, n) if ((n) > 0) swapfunc((a), (b), (size_t)(n), swaptype)
 
+static void
+get_lock()
+{
+	struct sembuf operations[1];
+
+	operations[0].sem_num = 0;
+	operations[0].sem_op = -1;
+	operations[0].sem_flg = 0;
+	/* FIXME: handle error */
+	semop(sem_id_dop, operations, 1);
+}
+
+void static
+release_lock()
+{
+	struct sembuf operations[1];
+
+	operations[0].sem_num = 0;
+	operations[0].sem_op = 1;
+	operations[0].sem_flg = 0;
+	/* FIXME: handle error */
+	semop(sem_id_dop, operations, 1);
+}
+
 static char *
 med3(char *a, char *b, char *c, qsort_arg_comparator cmp, void *arg)
 {
@@ -114,7 +148,11 @@ qsort_arg(void *a, size_t n, size_t es, qsort_arg_comparator cmp, void *arg)
 				swaptype,
 				presorted;
 
-loop:SWAPINIT(a, es);
+	int lchild = -1;
+	int rchild = -1;
+	int status; /* For waitpid() only. */
+
+	SWAPINIT(a, es);
 	if (n < 7)
 	{
 		for (pm = (char *) a + es; pm < (char *) a + n * es; pm += es)
@@ -183,13 +221,57 @@ loop:SWAPINIT(a, es);
 	r = Min(pd - pc, pn - pd - es);
 	vecswap(pb, pn - r, r);
 	if ((r = pb - pa) > es)
-		qsort_arg(a, r / es, es, cmp, arg);
+	{
+		get_lock();
+		if (*shm_dop < degree_of_parallelism)
+		{
+			/* Under the degree limit, fork. */
+			++*shm_dop;
+			release_lock();
+
+			lchild = fork(); /* FIXME: handle error */
+			if (lchild == 0) {
+				/* The 'left' child starts processing. */
+				qsort_arg(a, r / es, es, cmp, arg);
+
+				get_lock();
+				--*shm_dop;
+				release_lock();
+				exit(0);
+			}
+		}
+		else
+		{
+			release_lock();
+			qsort_arg(a, r / es, es, cmp, arg);
+		}
+	}
 	if ((r = pd - pc) > es)
 	{
-		/* Iterate rather than recurse to save stack space */
-		a = pn - r;
-		n = r / es;
-		goto loop;
+		get_lock();
+		if (*shm_dop < degree_of_parallelism)
+		{
+			/* Under the degree limit, fork. */
+			++*shm_dop;
+			release_lock();
+
+			rchild = fork(); /* FIXME: handle error */
+			if (lchild == 0) {
+				/* The 'right' child starts processing. */
+				qsort_arg(pn - r, r / es, es, cmp, arg);
+
+				get_lock();
+				--*shm_dop;
+				release_lock();
+				exit(0);
+			}
+		}
+		else
+		{
+			release_lock();
+			qsort_arg(pn - r, r / es, es, cmp, arg);
+		}
 	}
-/*		qsort_arg(pn - r, r / es, es, cmp, arg);*/
+	waitpid(lchild, &status, 0);
+	waitpid(rchild, &status, 0);
 }
