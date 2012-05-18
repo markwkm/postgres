@@ -37,6 +37,7 @@
 #include "commands/variable.h"
 #include "commands/trigger.h"
 #include "funcapi.h"
+#include "httpd/httplistener.h"
 #include "libpq/auth.h"
 #include "libpq/be-fsstubs.h"
 #include "libpq/libpq.h"
@@ -1647,6 +1648,25 @@ static struct config_int ConfigureNamesInt[] =
 		},
 		&PostPortNumber,
 		DEF_PGPORT, 1, 65535,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"http_listener", PGC_SIGHUP, CONN_AUTH_SETTINGS,
+			gettext_noop("Enables the HTTP listener."),
+		},
+		&EnableHttpListener,
+		true,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"http_port", PGC_POSTMASTER, CONN_AUTH_SETTINGS,
+			gettext_noop("Sets the TCP port the HTTP server listens on."),
+			NULL
+		},
+		&PostHttpPortNumber,
+		DEF_PGHTTPPORT, 1, 65535,
 		NULL, NULL, NULL
 	},
 

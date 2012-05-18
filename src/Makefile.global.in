@@ -333,6 +333,7 @@ endif
 # Feature settings
 
 DEF_PGPORT = @default_port@
+DEF_PGHTTPPORT = @default_httpport@
 WANTED_LANGUAGES = @WANTED_LANGUAGES@
 
 

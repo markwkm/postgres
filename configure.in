@@ -164,6 +164,25 @@ AC_DEFINE_UNQUOTED(DEF_PGPORT_STR, "${default_port}",
 AC_SUBST(default_port)
 
 #
+# Default port number (--with-pghttpport), default 54321
+#
+AC_MSG_CHECKING([for default http port number])
+PGAC_ARG_REQ(with, pghttpport, [HTTPPORTNUM],
+             [set default http port number [54321]],
+             [default_httpport=$withval],
+             [default_httpport=54321])
+AC_MSG_RESULT([$default_httpport])
+# Need both of these because some places want an integer and some a string
+AC_DEFINE_UNQUOTED(DEF_PGHTTPPORT, ${default_httpport},
+[Define to the default TCP http port number on which the server listens and
+to which clients will try to connect.  This can be overridden at run-time,
+but it's convenient if your clients have the right default compiled in.
+(--with-pghttpport=HTTPPORTNUM)])
+AC_DEFINE_UNQUOTED(DEF_PGHTTPPORT_STR, "${default_httpport}",
+                   [Define to the default TCP http port number as a string constant.])
+AC_SUBST(default_httpport)
+
+#
 # Option to disable shared libraries
 #
 PGAC_ARG_BOOL(enable, shared, yes,

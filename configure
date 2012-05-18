@@ -751,6 +751,7 @@ enable_profiling
 enable_debug
 enable_rpath
 enable_shared
+default_httpport
 default_port
 WANTED_LANGUAGES
 enable_nls
@@ -812,6 +813,7 @@ with_libs
 enable_integer_datetimes
 enable_nls
 with_pgport
+with_pghttpport
 enable_shared
 enable_rpath
 enable_spinlocks
@@ -1515,6 +1517,8 @@ Optional Packages:
   --with-libraries=DIRS   look for additional libraries in DIRS
   --with-libs=DIRS        alternative spelling of --with-libraries
   --with-pgport=PORTNUM   set default port number [5432]
+  --with-pghttpport=HTTPPORTNUM
+                          set default http port number [54321]
   --with-blocksize=BLOCKSIZE
                           set table block size in kB [8]
   --with-segsize=SEGSIZE  set table segment size in GB [1]
@@ -2469,6 +2473,53 @@ _ACEOF
 
 cat >>confdefs.h <<_ACEOF
 #define DEF_PGPORT_STR "${default_port}"
+_ACEOF
+
+
+
+#
+# Default port number (--with-pghttpport), default 54321
+#
+{ $as_echo "$as_me:$LINENO: checking for default http port number" >&5
+$as_echo_n "checking for default http port number... " >&6; }
+
+
+
+# Check whether --with-pghttpport was given.
+if test "${with_pghttpport+set}" = set; then
+  withval=$with_pghttpport;
+  case $withval in
+    yes)
+      { { $as_echo "$as_me:$LINENO: error: argument required for --with-pghttpport option" >&5
+$as_echo "$as_me: error: argument required for --with-pghttpport option" >&2;}
+   { (exit 1); exit 1; }; }
+      ;;
+    no)
+      { { $as_echo "$as_me:$LINENO: error: argument required for --with-pghttpport option" >&5
+$as_echo "$as_me: error: argument required for --with-pghttpport option" >&2;}
+   { (exit 1); exit 1; }; }
+      ;;
+    *)
+      default_httpport=$withval
+      ;;
+  esac
+
+else
+  default_httpport=54321
+fi
+
+
+{ $as_echo "$as_me:$LINENO: result: $default_httpport" >&5
+$as_echo "$default_httpport" >&6; }
+# Need both of these because some places want an integer and some a string
+
+cat >>confdefs.h <<_ACEOF
+#define DEF_PGHTTPPORT ${default_httpport}
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define DEF_PGHTTPPORT_STR "${default_httpport}"
 _ACEOF
 
 

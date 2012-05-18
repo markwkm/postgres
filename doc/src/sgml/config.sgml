@@ -373,6 +373,20 @@ SET ENABLE_SEQSCAN TO OFF;
       </listitem>
      </varlistentry>
 
+     <varlistentry id="guc-http-port" xreflabel="http_port">
+      <term><varname>port</varname> (<type>integer</type>)</term>
+      <indexterm>
+       <primary><varname>http_port</> configuration parameter</primary>
+      </indexterm>
+      <listitem>
+       <para>
+        The TCP port the http server listens on; 5432 by default.  Note that
+		the same port number is used for all IP addresses the server listens
+		on.  This parameter can only be set at server start.
+       </para>
+      </listitem>
+     </varlistentry>
+
      <varlistentry id="guc-max-connections" xreflabel="max_connections">
       <term><varname>max_connections</varname> (<type>integer</type>)</term>
       <indexterm>
