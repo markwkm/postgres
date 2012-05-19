@@ -15,3 +15,7 @@
 /* GUC variable */
 bool EnableHttpListener;
 int PostHttpPortNumber;
+
+void HttpListenerMain(void)
+{
+}

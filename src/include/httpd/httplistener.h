@@ -19,4 +19,7 @@
 extern bool EnableHttpListener;
 extern int PostHttpPortNumber;
 
+/* prototypes for functions in httplistener.c */
+extern void HttpListenerMain(void);
+
 #endif   /* _HTTPLISTENER_H */

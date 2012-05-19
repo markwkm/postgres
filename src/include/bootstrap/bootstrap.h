@@ -25,6 +25,7 @@ typedef enum
 	CheckpointerProcess,
 	WalWriterProcess,
 	WalReceiverProcess,
+	HttpListenerProcess,
 
 	NUM_AUXPROCTYPES			/* Must be last! */
 } AuxProcType;

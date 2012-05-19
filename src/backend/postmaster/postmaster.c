@@ -95,6 +95,7 @@
 #include "access/xlog.h"
 #include "bootstrap/bootstrap.h"
 #include "catalog/pg_control.h"
+#include "httpd/httplistener.h"
 #include "lib/dllist.h"
 #include "libpq/auth.h"
 #include "libpq/ip.h"
@@ -211,6 +212,7 @@ static pid_t StartupPID = 0,
 			CheckpointerPID = 0,
 			WalWriterPID = 0,
 			WalReceiverPID = 0,
+			HttpListenerPID = 0,
 			AutoVacPID = 0,
 			PgArchPID = 0,
 			PgStatPID = 0,
@@ -471,6 +473,7 @@ static void ShmemBackendArrayRemove(Backend *bn);
 #define StartCheckpointer()		StartChildProcess(CheckpointerProcess)
 #define StartWalWriter()		StartChildProcess(WalWriterProcess)
 #define StartWalReceiver()		StartChildProcess(WalReceiverProcess)
+#define StartHttpListener()		StartChildProcess(HttpListenerProcess)
 
 /* Macros to check exit status of a child process */
 #define EXIT_STATUS_0(st)  ((st) == 0)
@@ -1281,6 +1284,9 @@ ServerLoop(void)
 
 	nSockets = initMasks(&readmask);
 
+	if (EnableHttpListener && HttpListenerPID == 0)
+		HttpListenerPID = StartHttpListener();
+
 	for (;;)
 	{
 		fd_set		rmask;
@@ -2058,6 +2064,8 @@ SIGHUP_handler(SIGNAL_ARGS)
 		SignalChildren(SIGHUP);
 		if (StartupPID != 0)
 			signal_child(StartupPID, SIGHUP);
+		if (HttpListenerPID != 0)
+			signal_child(HttpListenerPID, SIGHUP);
 		if (BgWriterPID != 0)
 			signal_child(BgWriterPID, SIGHUP);
 		if (CheckpointerPID != 0)
@@ -2174,6 +2182,8 @@ pmdie(SIGNAL_ARGS)
 
 			if (StartupPID != 0)
 				signal_child(StartupPID, SIGTERM);
+			if (HttpListenerPID != 0)
+				signal_child(HttpListenerPID, SIGTERM);
 			if (WalReceiverPID != 0)
 				signal_child(WalReceiverPID, SIGTERM);
 			if (BgWriterPID != 0)
@@ -2223,6 +2233,8 @@ pmdie(SIGNAL_ARGS)
 			SignalChildren(SIGQUIT);
 			if (StartupPID != 0)
 				signal_child(StartupPID, SIGQUIT);
+			if (HttpListenerPID != 0)
+				signal_child(HttpListenerPID, SIGQUIT);
 			if (BgWriterPID != 0)
 				signal_child(BgWriterPID, SIGQUIT);
 			if (CheckpointerPID != 0)
@@ -4299,6 +4311,13 @@ sigusr1_handler(SIGNAL_ARGS)
 		WalReceiverPID = StartWalReceiver();
 	}
 
+	if (CheckPostmasterSignal(PMSIGNAL_START_HTTPLISTENER) &&
+		EnableHttpListener && HttpListenerPID == 0)
+	{
+		/* Startup Process wants us to start the http listener process. */
+		HttpListenerPID = StartHttpListener();
+	}
+
 	if (CheckPostmasterSignal(PMSIGNAL_ADVANCE_STATE_MACHINE) &&
 		(pmState == PM_WAIT_BACKUP || pmState == PM_WAIT_BACKENDS))
 	{
@@ -4532,6 +4551,10 @@ StartChildProcess(AuxProcType type)
 			case WalReceiverProcess:
 				ereport(LOG,
 						(errmsg("could not fork WAL receiver process: %m")));
+				break;
+			case HttpListenerProcess:
+				ereport(LOG,
+						(errmsg("could not fork HTTP listener process: %m")));
 				break;
 			default:
 				ereport(LOG,

@@ -25,6 +25,7 @@
 #include "catalog/index.h"
 #include "catalog/pg_collation.h"
 #include "catalog/pg_type.h"
+#include "httpd/httplistener.h"
 #include "libpq/pqsignal.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -325,6 +326,9 @@ AuxiliaryProcessMain(int argc, char *argv[])
 			case WalReceiverProcess:
 				statmsg = "wal receiver process";
 				break;
+			case HttpListenerProcess:
+				statmsg = "http listener process";
+				break;
 			default:
 				statmsg = "??? process";
 				break;
@@ -433,6 +437,11 @@ AuxiliaryProcessMain(int argc, char *argv[])
 		case WalReceiverProcess:
 			/* don't set signals, walreceiver has its own agenda */
 			WalReceiverMain();
+			proc_exit(1);		/* should never return */
+
+		case HttpListenerProcess:
+			bootstrap_signals();
+			HttpListenerMain();
 			proc_exit(1);		/* should never return */
 
 		default:
