@@ -8,7 +8,6 @@
  *
  * IDENTIFICATION
  *	  src/backend/access/brin/brin.c
- *
  * TODO
  *		* ScalarArrayOpExpr (amsearcharray -> SK_SEARCHARRAY)
  */
