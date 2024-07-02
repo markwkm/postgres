@@ -1,7 +1,6 @@
 /*
  * brin.c
  *		Implementation of BRIN indexes for Postgres
- *
  * See src/backend/access/brin/README for details.
  *
  * Portions Copyright (c) 1996-2024, PostgreSQL Global Development Group
