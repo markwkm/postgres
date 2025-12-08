@@ -657,6 +657,13 @@ LANGUAGE INTERNAL
 STRICT VOLATILE PARALLEL UNSAFE
 AS 'pg_replication_origin_session_setup';
 
+CREATE OR REPLACE FUNCTION
+  pg_get_ruledef(rule oid, pretty bool DEFAULT false)
+RETURNS TEXT
+LANGUAGE INTERNAL
+PARALLEL SAFE
+AS 'pg_get_ruledef';
+
 --
 -- The default permissions for functions mean that anyone can execute them.
 -- A number of functions shouldn't be executable by just anyone, but rather
