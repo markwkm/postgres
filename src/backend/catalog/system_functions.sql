@@ -664,6 +664,20 @@ LANGUAGE INTERNAL
 PARALLEL SAFE
 AS 'pg_get_ruledef';
 
+CREATE OR REPLACE FUNCTION
+  pg_get_viewdef(view text, pretty bool DEFAULT false)
+RETURNS TEXT
+LANGUAGE INTERNAL
+PARALLEL RESTRICTED
+AS 'pg_get_viewdef_name';
+
+CREATE OR REPLACE FUNCTION
+  pg_get_viewdef(view oid, pretty bool DEFAULT false)
+RETURNS TEXT
+LANGUAGE INTERNAL
+PARALLEL RESTRICTED
+AS 'pg_get_viewdef';
+
 --
 -- The default permissions for functions mean that anyone can execute them.
 -- A number of functions shouldn't be executable by just anyone, but rather
