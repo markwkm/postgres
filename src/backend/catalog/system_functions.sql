@@ -692,6 +692,13 @@ LANGUAGE INTERNAL
 PARALLEL SAFE
 AS 'pg_get_constraintdef';
 
+CREATE OR REPLACE FUNCTION
+  pg_get_expr(expr pg_node_tree, relation oid, pretty bool DEFAULT false)
+RETURNS TEXT
+LANGUAGE INTERNAL
+PARALLEL SAFE
+AS 'pg_get_expr';
+
 --
 -- The default permissions for functions mean that anyone can execute them.
 -- A number of functions shouldn't be executable by just anyone, but rather
